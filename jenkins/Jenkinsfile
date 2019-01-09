@@ -2,9 +2,6 @@ def CONTAINER_NAME="helloworld-test"
 def CONTAINER_TAG="latest"
 def CONTAINER_PORT="8080"
 
-def pipelineContext = [:]
-def dockerImageTag = "helloworld-test:build-${env.BUILD_ID}"
-
 node {
 	stage('Initialize'){
 		def dockerHome = tool 'testDocker'
