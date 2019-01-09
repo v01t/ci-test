@@ -1,0 +1,78 @@
+def CONTAINER_NAME="helloworld-test"
+def CONTAINER_TAG="latest"
+def CONTAINER_PORT="8080"
+
+def pipelineContext = [:]
+def dockerImageTag = "helloworld-test:build-${env.BUILD_ID}"
+
+node {
+	stage('Initialize'){
+		def dockerHome = tool 'testDocker'
+		def mavenHome  = tool 'testMaven'
+		env.PATH = "${dockerHome}/bin:${mavenHome}/bin:${env.PATH}"
+	}
+
+	stage('Checkout') {
+		checkout scm
+	}
+
+	stage('Build'){
+		sh "mvn clean install"
+	}
+
+	stage("Image Prune"){
+		imagePrune(CONTAINER_NAME)
+	}
+
+	stage('Image Build'){
+		imageBuild(CONTAINER_NAME, CONTAINER_TAG)
+	}
+
+	stage('Run App'){
+		runApp(CONTAINER_NAME, CONTAINER_TAG, CONTAINER_PORT)
+	}
+
+	stage('Test App'){
+		testApp(CONTAINER_NAME, CONTAINER_PORT)
+	}
+	
+	stage('Stop App'){
+		stopApp(CONTAINER_NAME)
+	}
+
+	stage('Future Action'){
+		sh "echo 'Some action'"
+	}
+}
+
+def imagePrune(containerName){
+	try {
+		sh "docker image prune -f"
+		sh "docker stop $containerName"
+	} catch(error){}
+}
+
+def imageBuild(containerName, tag){
+	sh "docker build -t $containerName:$tag --pull --no-cache ."
+	echo "Image build complete"
+}
+
+def runApp(containerName, tag, httpPort){
+	sh "docker run -d --rm -p $httpPort:$httpPort --name $containerName $containerName:$tag"
+}
+
+def stopApp(containerName){
+	try {
+		sh "docker stop $containerName"
+	} catch(error){}
+}
+
+def testApp(containerName, httpPort){
+	script {
+		APP_IP = sh(returnStdout: true, script: "docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $containerName|tr -d '\n'")
+		APP_RESPONSE = sh(returnStdout: true, script: "sleep 5 && curl -s http://$APP_IP:$httpPort/hello")
+	}
+	if (APP_RESPONSE != "Hello World!"){
+		sh 'echo "Test Failed!"; exit 1;'
+	}
+}

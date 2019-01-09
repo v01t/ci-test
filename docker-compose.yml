@@ -1,0 +1,15 @@
+version: '3.2'
+services:
+  jenkins:
+    build:
+      context: jenkins/
+    privileged: true
+    user: root
+    network_mode: host
+    ports:
+      - 8000:8080
+    volumes:
+      - /usr/bin/docker:/usr/bin/docker
+      - /var/run/docker.sock:/var/run/docker.sock
+      #- ./jenkins_home:/var/jenkins_home
+      #- ./jenkins/jobs:/var/jenkins_home/jobs
